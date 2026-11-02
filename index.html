@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Malus - ASCII Terminal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font JetBrains Mono für perfekten ASCII Text -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #0d1117;
+            color: #00ff66;
+        }
+        /* Standard Scrollbar für Terminal-Look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #00ff66;
+        }
+        /* Dynamic ASCII Glow Effect */
+        .ascii-border {
+            border: 1px solid #00ff66;
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.2);
+        }
+        .ascii-dot {
+            color: #00ff66;
+            cursor: pointer;
+            transition: color 0.15s ease, text-shadow 0.15s ease;
+        }
+        .ascii-dot:hover {
+            color: #ffffff;
+            text-shadow: 0 0 8px #00ff66;
+        }
+        .ascii-text-btn {
+            color: #00ff66;
+            cursor: pointer;
+        }
+        .ascii-text-btn:hover {
+            color: #ffffff;
+            text-shadow: 0 0 5px #00ff66;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 select-none">
+
+    <!-- Toast Banner (Terminal Style) -->
+    <div id="toast" class="fixed top-4 bg-black border border-emerald-400 text-emerald-400 px-4 py-2 text-xs sm:text-sm font-mono shadow-[0_0_15px_rgba(0,255,102,0.4)] transition-all duration-300 -translate-y-20 opacity-0 z-50">
+        [!] <span id="toast-message">PASSWORT IN ZWISCHENABLAGE KOPIERT!</span>
+    </div>
+
+    <!-- Main Terminal Container -->
+    <div class="w-full max-w-2xl bg-black ascii-border p-4 sm:p-6 rounded-none">
+        
+        <!-- Header ASCII Banner -->
+        <pre class="text-emerald-400 text-[9px] xs:text-[11px] sm:text-xs leading-none font-mono text-center overflow-x-auto whitespace-pre mb-4">
+.------------------------------------------------------------.
+|  __  __   A   _    _   _   ____                            |
+| |  \/  | / \ | |  | | | | / ___|                           |
+| | |\/| |/ _ \| |  | | | | \___ \                           |
+| | |  | / ___ \ |__| |_| |  ___) |                          |
+| |_|  |_/_/   \_\____\___/  |____/                          |
+|                                                            |
+|                  [ MALUS STUFE 2 ]                         |
+'------------------------------------------------------------'
+        </pre>
+
+        <div class="text-center text-xs text-emerald-500 mb-6 font-mono">
+            10 Passwörter
+        </div>
+
+        <!-- Password Items Container -->
+        <div id="password-list" class="space-y-4 font-mono text-sm sm:text-base max-h-[55vh] overflow-y-auto pr-1">
+            <!-- Items via JavaScript -->
+        </div>
+
+        <!-- Footer Terminal status -->
+        <div class="mt-6 pt-3 border-t border-emerald-900 flex justify-between text-[11px] text-emerald-600 font-mono">
+            <span>STATUS: READY</span>
+            <span>SECURE_ENV: ACTIVE</span>
+        </div>
+    </div>
+
+    <script>
+        // 10 Festgelegte 16-stellige Passwörter
+        const FIXED_PASSWORDS = [
+            "xK9#mP2$vL8!qN5w",
+            "aR7&tW4*yU1^zB9q",
+            "mK3$vP8!qN5wX9#L",
+            "bT8*yU2^zB9qC4@x",
+            "pW5!qN9wX2#LmR7$",
+            "cJ9^zB1qC5@xD3&y",
+            "vN2wX8#LmS4$pQ6!",
+            "dK4@xD6&yE8*zF1^",
+            "zX7#LmP3$qN9!wV2",
+            "eM5&yF9*zG2^aH4@"
+        ];
+
+        // Status-Tracking (Offengelegt & Sichtbarkeit)
+        const revealedStates = new Array(FIXED_PASSWORDS.length).fill(false);
+        // Standardmäßig auf maskiert (false = Punkte/Sterne, true = Klartext)
+        const maskStates = new Array(FIXED_PASSWORDS.length).fill(false);
+
+        const passwordListEl = document.getElementById('password-list');
+        const toast = document.getElementById('toast');
+
+        // Liste rendern ohne Input-Felder, Buttons oder Umrandungen
+        function renderPasswordList() {
+            passwordListEl.innerHTML = '';
+            
+            FIXED_PASSWORDS.forEach((pass, index) => {
+                const isRevealed = revealedStates[index];
+                const isTextVisible = maskStates[index];
+
+                let itemHtml = '';
+
+                if (!isRevealed) {
+                    // Reine Punktdarstellung (Keine Felder, keine Rahmen)
+                    itemHtml = `
+                        <div class="py-1">
+                            <span onclick="revealPassword(${index})" class="ascii-dot font-bold text-lg select-none px-2 py-1 inline-block">.</span>
+                        </div>
+                    `;
+                } else {
+                    // Aufgedecktes Passwort als reiner ASCII Text (zu Beginn maskiert)
+                    const displayVal = isTextVisible ? pass : "****************";
+                    
+                    itemHtml = `
+                        <div class="py-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-emerald-400">
+                            <span class="font-mono tracking-wider text-emerald-200 select-all">${displayVal}</span>
+                            <div class="flex items-center gap-3 text-xs">
+                                <span onclick="toggleMask(${index})" class="ascii-text-btn">
+                                    [${isTextVisible ? 'VERBERGEN' : 'ANZEIGEN'}]
+                                </span>
+                                <span onclick="copyToClipboard(${index})" class="ascii-text-btn font-bold">
+                                    [&gt; KOPIEREN &lt;]
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                passwordListEl.innerHTML += itemHtml;
+            });
+        }
+
+        function revealPassword(index) {
+            revealedStates[index] = true;
+            renderPasswordList();
+        }
+
+        function toggleMask(index) {
+            maskStates[index] = !maskStates[index];
+            renderPasswordList();
+        }
+
+        function copyToClipboard(index) {
+            const realPassword = FIXED_PASSWORDS[index];
+            
+            // Textbereich zum Verlässlichen Kopieren nutzen
+            const tempInput = document.createElement('textarea');
+            tempInput.value = realPassword;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast(`PASSWORT KOPIERT!`);
+                } else {
+                    showToast('FEHLER BEIM KOPIEREN!');
+                }
+            } catch (err) {
+                showToast('NICHT UNTERSTÜTZT!');
+            }
+            
+            document.body.removeChild(tempInput);
+        }
+
+        let toastTimeout;
+        function showToast(message) {
+            const toastMsg = document.getElementById('toast-message');
+            toastMsg.textContent = message;
+
+            toast.classList.remove('-translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('-translate-y-20', 'opacity-0');
+            }, 2000);
+        }
+
+        window.onload = function() {
+            renderPasswordList();
+        };
+    </script>
+</body>
+</html>
